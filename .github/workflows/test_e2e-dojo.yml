@@ -359,6 +359,8 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=8192
           BASE_URL: http://localhost:9999
           PLAYWRIGHT_SUITE: ${{ matrix.suite }}
+          # OIDC was attempted; this fork is outside the App installation.
+          ENDFORM_API_KEY: ${{ secrets.ENDFORM_API_KEY }}
           ENDFORM_GIT_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           ENDFORM_GIT_BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
