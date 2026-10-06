@@ -7,12 +7,14 @@ on:
       - "packages/**"
       - "sdk-python/**"
       - ".github/workflows/test_e2e-dojo.yml"
+      - "scripts/dojo-endform/**"
   pull_request:
-    branches: [main]
+    branches: [main, codex/dojo-playwright-baseline]
     paths:
       - "packages/**"
       - "sdk-python/**"
       - ".github/workflows/test_e2e-dojo.yml"
+      - "scripts/dojo-endform/**"
   workflow_dispatch:
     inputs:
       branch:
@@ -54,6 +56,7 @@ jobs:
             ts:
               - 'packages/**'
               - '.github/workflows/test_e2e-dojo.yml'
+              - 'scripts/dojo-endform/**'
             python:
               - 'sdk-python/**'
 
@@ -65,6 +68,7 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -288,12 +292,19 @@ jobs:
         working-directory: CopilotKit
         run: node ../ag-ui/apps/dojo/scripts/link-cpk.js ${{ github.workspace }}/CopilotKit/packages
 
+      - name: Configure Endform for the pinned Dojo suite
+        if: steps.should-run.outputs.skip != 'true'
+        working-directory: ag-ui
+        run: |
+          git apply ../CopilotKit/scripts/dojo-endform/dependencies.patch
+          node ../CopilotKit/scripts/dojo-endform/configure.mjs apps/dojo/e2e
+
       - name: Install e2e dependencies
         if: steps.should-run.outputs.skip != 'true'
         working-directory: ag-ui/apps/dojo/e2e
-        # This standalone package is excluded from AG-UI's pnpm workspace.
-        # Its authored npm lock and postinstall install the native browser.
-        run: npm ci
+        # Preserve the standalone lock, with Endform added. Remote browsers
+        # replace native postinstall's Chromium download.
+        run: npm ci --ignore-scripts
 
       # Deliberately no LANGSMITH_API_KEY: langgraph-api turns tracing on
       # whenever it sees one (config/__init__.py: LANGSMITH_CONTROL_PLANE_API_KEY
@@ -332,6 +343,15 @@ jobs:
           wait-on: ${{ matrix.wait_on }}
           wait-for: 300000
 
+      - name: Run the existing standalone Aimock service
+        if: steps.should-run.outputs.skip != 'true'
+        uses: JarvusInnovations/background-action@1f5e5fa2462e48a95f97b54b4842d076d1008e3b # v2
+        with:
+          run: pnpm exec tsx aimock-standalone.ts
+          working-directory: ag-ui/apps/dojo/e2e
+          wait-on: tcp:localhost:5555
+          wait-for: 60000
+
       - name: Run tests – ${{ matrix.suite }}
         if: steps.should-run.outputs.skip != 'true'
         working-directory: ag-ui/apps/dojo/e2e
@@ -339,8 +359,16 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=8192
           BASE_URL: http://localhost:9999
           PLAYWRIGHT_SUITE: ${{ matrix.suite }}
+          # OIDC was attempted; this fork is outside the App installation.
+          ENDFORM_API_KEY: ${{ secrets.ENDFORM_API_KEY }}
+          ENDFORM_GIT_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          ENDFORM_GIT_BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
-          pnpm test -- ${{ matrix.test_path }}
+          curl --fail --silent --show-error http://localhost:5555/health
+          test_status=0
+          npx endform@latest test --organization-id 2G1ZCj7X ${{ matrix.test_path }} || test_status=$?
+          curl --fail --silent --show-error http://localhost:5555/health
+          exit "$test_status"
 
       - name: Upload traces – ${{ matrix.suite }}
         if: always() && steps.should-run.outputs.skip != 'true'
