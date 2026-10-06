@@ -51,6 +51,12 @@ name: "test / e2e / showcase / on-demand"
 #   GitHub ever ships a comment-time SHA field, pin to it and drop this note.
 
 on:
+  # The fork benchmark runs the complete LangGraph suite on its isolated PRs.
+  pull_request:
+    branches: [main, codex/showcase-playwright-baseline]
+    paths:
+      - '.github/workflows/test_e2e-showcase-on-demand.yml'
+      - 'showcase/integrations/langgraph-python/**'
   issue_comment:
     types: [created]
   workflow_dispatch:
@@ -105,6 +111,7 @@ jobs:
     # own line at the top of the comment.
     if: >
       github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.repository == 'ostenbom/CopilotKit') ||
       (github.event.issue.pull_request
         && startsWith(github.event.comment.body, '/test-aimock ')
         && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
@@ -181,7 +188,9 @@ jobs:
           DISPATCH_SLUG: ${{ github.event.inputs.slug }}
         run: |
           set -euo pipefail
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            SLUG="langgraph-python"
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             SLUG="$DISPATCH_SLUG"
           else
             # POSIX-safe extraction (no `grep -oP` / PCRE `\K`): match
