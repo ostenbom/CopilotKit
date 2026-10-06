@@ -9,7 +9,7 @@ export default defineConfig({
   reporter: "html",
   use: {
     baseURL: process.env.BASE_URL || "http://localhost:3000",
-    trace: "on-first-retry",
+    trace: "retain-on-failure",
     extraHTTPHeaders: {
       "X-AIMock-Context": "langgraph-python",
     },

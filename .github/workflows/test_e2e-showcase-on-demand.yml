@@ -120,6 +120,9 @@ jobs:
     # grep would still work, but ubuntu-latest keeps the install/setup matrix
     # consistent with every other showcase workflow.
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     # Full 191-test LangGraph suite with two retries exceeds the old budget.
     timeout-minutes: ${{ (github.event_name == 'pull_request' || inputs.slug == 'langgraph-python' || startsWith(github.event.comment.body, '/test-aimock langgraph-python')) && 60 || 15 }}
 
@@ -501,6 +504,7 @@ jobs:
       # are already present on the Ubuntu runner image, so downloading the browser is
       # all this step needs.
       - name: Install Playwright
+        if: steps.slug.outputs.slug != 'langgraph-python'
         run: |
           cd "showcase/integrations/${{ steps.slug.outputs.slug }}"
           npx playwright install chromium
@@ -521,11 +525,15 @@ jobs:
             exit 1
           fi
 
-      - name: Run Playwright tests
+      - name: Run browser tests
         run: |
           SLUG="${{ steps.slug.outputs.slug }}"
           cd "showcase/integrations/$SLUG"
-          BASE_URL=http://localhost:3000 npx playwright test --reporter=list
+          if [ "$SLUG" = "langgraph-python" ]; then
+            BASE_URL=http://localhost:3000 npx endform@latest test --organization-id 2G1ZCj7X
+          else
+            BASE_URL=http://localhost:3000 npx playwright test --reporter=list
+          fi
         env:
           CI: "true"
           # Dead env — Next.js is already running from the "Start dev server"
