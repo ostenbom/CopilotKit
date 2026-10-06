@@ -447,7 +447,13 @@ jobs:
           # an attacker's postinstall script would execute on the runner with
           # the workflow's token. The E2E path (Playwright + Next.js dev) does
           # not require install-time scripts to succeed.
-          pnpm install --ignore-scripts
+          if [ "$SLUG" = "langgraph-python" ]; then
+            # Standalone package excluded from the pnpm workspace: pnpm would
+            # install the root instead. Match its Dockerfile and frozen lock.
+            npm ci --legacy-peer-deps --ignore-scripts
+          else
+            pnpm install --ignore-scripts
+          fi
 
       - name: Start dev server
         run: |
