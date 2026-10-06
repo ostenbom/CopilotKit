@@ -120,8 +120,8 @@ jobs:
     # grep would still work, but ubuntu-latest keeps the install/setup matrix
     # consistent with every other showcase workflow.
     runs-on: ubuntu-latest
-    # Full 191-test LangGraph suite with two retries exceeds the old budget.
-    timeout-minutes: ${{ (github.event_name == 'pull_request' || inputs.slug == 'langgraph-python' || startsWith(github.event.comment.body, '/test-aimock langgraph-python')) && 60 || 15 }}
+    # Full 191-test LangGraph suite: the 60-minute run completed only 86 tests.
+    timeout-minutes: ${{ (github.event_name == 'pull_request' || inputs.slug == 'langgraph-python' || startsWith(github.event.comment.body, '/test-aimock langgraph-python')) && 180 || 15 }}
 
     steps:
       # For issue_comment events, we need to resolve the PR HEAD SHA ourselves
