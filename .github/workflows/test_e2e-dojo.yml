@@ -362,7 +362,11 @@ jobs:
           ENDFORM_GIT_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           ENDFORM_GIT_BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
-          npx endform@latest test --organization-id 2G1ZCj7X ${{ matrix.test_path }}
+          curl --fail --silent --show-error http://localhost:5555/health
+          test_status=0
+          npx endform@latest test --organization-id 2G1ZCj7X ${{ matrix.test_path }} || test_status=$?
+          curl --fail --silent --show-error http://localhost:5555/health
+          exit "$test_status"
 
       - name: Upload traces – ${{ matrix.suite }}
         if: always() && steps.should-run.outputs.skip != 'true'
