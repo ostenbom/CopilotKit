@@ -51,6 +51,12 @@ name: "test / e2e / showcase / on-demand"
 #   GitHub ever ships a comment-time SHA field, pin to it and drop this note.
 
 on:
+  # The fork benchmark runs the complete LangGraph suite on its isolated PRs.
+  pull_request:
+    branches: [main, codex/showcase-playwright-baseline]
+    paths:
+      - '.github/workflows/test_e2e-showcase-on-demand.yml'
+      - 'showcase/integrations/langgraph-python/**'
   issue_comment:
     types: [created]
   workflow_dispatch:
@@ -105,6 +111,7 @@ jobs:
     # own line at the top of the comment.
     if: >
       github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.repository == 'ostenbom/CopilotKit') ||
       (github.event.issue.pull_request
         && startsWith(github.event.comment.body, '/test-aimock ')
         && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
@@ -113,7 +120,8 @@ jobs:
     # grep would still work, but ubuntu-latest keeps the install/setup matrix
     # consistent with every other showcase workflow.
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Full 191-test LangGraph suite: the 60-minute run completed only 86 tests.
+    timeout-minutes: ${{ (github.event_name == 'pull_request' || inputs.slug == 'langgraph-python' || startsWith(github.event.comment.body, '/test-aimock langgraph-python')) && 180 || 15 }}
 
     steps:
       # For issue_comment events, we need to resolve the PR HEAD SHA ourselves
@@ -181,7 +189,9 @@ jobs:
           DISPATCH_SLUG: ${{ github.event.inputs.slug }}
         run: |
           set -euo pipefail
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            SLUG="langgraph-python"
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             SLUG="$DISPATCH_SLUG"
           else
             # POSIX-safe extraction (no `grep -oP` / PCRE `\K`): match
@@ -438,7 +448,13 @@ jobs:
           # an attacker's postinstall script would execute on the runner with
           # the workflow's token. The E2E path (Playwright + Next.js dev) does
           # not require install-time scripts to succeed.
-          pnpm install --ignore-scripts
+          if [ "$SLUG" = "langgraph-python" ]; then
+            # Standalone package excluded from the pnpm workspace: pnpm would
+            # install the root instead. Match its Dockerfile and frozen lock.
+            npm ci --legacy-peer-deps --ignore-scripts
+          else
+            pnpm install --ignore-scripts
+          fi
 
       - name: Start dev server
         run: |
@@ -537,7 +553,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: playwright-report-${{ steps.slug.outputs.slug }}
-          path: showcase/integrations/${{ steps.slug.outputs.slug }}/playwright-report/
+          path: |
+            showcase/integrations/${{ steps.slug.outputs.slug }}/playwright-report/
+            showcase/integrations/${{ steps.slug.outputs.slug }}/test-results/
           retention-days: 7
           if-no-files-found: ignore
 
