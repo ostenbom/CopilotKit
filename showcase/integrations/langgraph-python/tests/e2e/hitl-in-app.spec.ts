@@ -20,7 +20,9 @@ import { test, expect } from "@playwright/test";
 // — but the assertion text differs, so at least one of the two tests
 // would fail. That asymmetry is what makes the assertion genuine.
 
-test.describe("HITL In-App (approval dialog portaled to <body>)", () => {
+const hitl = { tag: "@hitl-in-app-serial" };
+
+test.describe("HITL In-App (approval dialog portaled to <body>)", hitl, () => {
   // Serial mode is load-bearing: aimock's `sequenceIndex` matcher counts
   // matches across the whole process, so the approve test (sequenceIndex 0)
   // MUST run before the reject test (sequenceIndex 1) for each pill pair.

@@ -120,6 +120,9 @@ jobs:
     # grep would still work, but ubuntu-latest keeps the install/setup matrix
     # consistent with every other showcase workflow.
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     # Full 191-test LangGraph suite: the 60-minute run completed only 86 tests.
     timeout-minutes: ${{ (github.event_name == 'pull_request' || inputs.slug == 'langgraph-python' || startsWith(github.event.comment.body, '/test-aimock langgraph-python')) && 180 || 15 }}
 
@@ -501,6 +504,7 @@ jobs:
       # are already present on the Ubuntu runner image, so downloading the browser is
       # all this step needs.
       - name: Install Playwright
+        if: steps.slug.outputs.slug != 'langgraph-python'
         run: |
           cd "showcase/integrations/${{ steps.slug.outputs.slug }}"
           npx playwright install chromium
@@ -521,18 +525,24 @@ jobs:
             exit 1
           fi
 
+      - name: Run Endform tests
+        if: steps.slug.outputs.slug == 'langgraph-python'
+        run: |
+          cd showcase/integrations/langgraph-python
+          BASE_URL=http://localhost:3000 npx endform@latest test --organization-id 2G1ZCj7X
+        env:
+          CI: "true"
+          # The Endform GitHub App does not cover this personal fork.
+          ENDFORM_API_KEY: ${{ secrets.ENDFORM_API_KEY }}
+
       - name: Run Playwright tests
+        if: steps.slug.outputs.slug != 'langgraph-python'
         run: |
           SLUG="${{ steps.slug.outputs.slug }}"
           cd "showcase/integrations/$SLUG"
           BASE_URL=http://localhost:3000 npx playwright test --reporter=list
         env:
           CI: "true"
-          # Dead env — Next.js is already running from the "Start dev server"
-          # step above (which set these inline on that process). Env set here
-          # would only affect the `npx playwright test` process, which does not
-          # read OPENAI_BASE_URL / OPENAI_API_KEY. Leaving unset to avoid the
-          # false impression that these values flow to the running Next server.
 
       - name: Re-check aimock liveness after Playwright
         if: always()
