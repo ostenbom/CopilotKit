@@ -22,3 +22,10 @@ clears a fresh context which is closed and never reused by the tests.
 Loopback HTTP proxying reaches the CI-local application, agents, and Aimock,
 including diagnostic requests from Node. Only the runtime upload image needs
 explicit additional-file transfer; golden event traces are imported modules.
+
+Two uncapped full-matrix runs recovered 2 and 7 flaky LangGraph TypeScript
+tests, while both native samples had no flakies. The Endform configuration now
+limits that integration to four concurrent tests per run, keyed by the existing
+`PLAYWRIGHT_SUITE` environment variable. Other integration limits are unchanged.
+Tests, timeouts, retries, and projects are preserved. This capacity hypothesis is
+validated separately from the uncapped benchmark rather than mixing revisions.
