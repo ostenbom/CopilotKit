@@ -291,8 +291,9 @@ jobs:
       - name: Install e2e dependencies
         if: steps.should-run.outputs.skip != 'true'
         working-directory: ag-ui/apps/dojo/e2e
-        run: |
-          pnpm install
+        # This standalone package is excluded from AG-UI's pnpm workspace.
+        # Its authored npm lock and postinstall install the native browser.
+        run: npm ci
 
       # Deliberately no LANGSMITH_API_KEY: langgraph-api turns tracing on
       # whenever it sees one (config/__init__.py: LANGSMITH_CONTROL_PLANE_API_KEY
